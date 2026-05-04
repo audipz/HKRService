@@ -134,3 +134,55 @@ Der globale Exception-Handler mappt typische Fach- und Laufzeitfehler auf HTTP-S
 - `409 CONFLICT`: Statuskonflikte, Parallelitaet, Constraint-Verletzungen.
 - `500 INTERNAL_SERVER_ERROR`: unerwartete technische Fehler.
 
+### Architekturueberblick
+
+#### Komponentenbild
+
+```text
+Client
+  |
+  v
+Controller (`F15zController`, `ReturnController`)
+  |
+  v
+Service-Schicht (`F15zService`, `F15zReturnService`, `IdempotencyService`)
+  |                    |
+  |                    +--> Formatlogik (`F15zGenerator`, `F15zFileParser`, `F15zValidator`)
+  |
+  +--> Repositories (`JobRepository`, `F15zTransactionRepository`, `IdempotencyRepository`)
+         |
+         v
+       R2DBC + H2
+```
+
+#### Sequenzfluss (Happy Path)
+
+```text
+1) Client -> POST /jobs
+2) Controller -> Service.createJob()
+3) Service -> JobRepository.save(CREATED)
+
+4) Client -> POST /jobs/{jobId}/transactions
+5) Controller -> IdempotencyService.exists/store (optional)
+6) Service -> JobRepository.save(COLLECTING)
+7) Service -> F15zTransactionRepository.save(...)
+
+8) Client -> POST /jobs/{jobId}/execute
+9) Service -> claimForExecution(PROCESSING)
+10) Service -> F15zGenerator -> F15zFileParser -> F15zValidator
+11) Service -> Jobstatus EXPORTED -> SENT
+12) Client -> GET /jobs/{jobId}/result
+
+13) Client -> POST /returns/{jobId}
+14) ReturnService -> Parser Rueckmeldedatei
+15) ReturnService -> Transaktionen auf CONFIRMED/ERROR
+16) ReturnService -> bei vollstaendig terminal: Jobstatus COMPLETED
+```
+
+#### Technische Leitplanken
+
+- Reaktive Verarbeitung via `Mono`/`Flux` fuer API und Persistenzpfad.
+- Statusuebergaenge werden fachlich im Service erzwungen.
+- Optimistic Locking schuetzt kritische Job-Statuswechsel.
+- Idempotenz ist fuer das Hinzufuegen von Transaktionen explizit unterstuetzt.
+
