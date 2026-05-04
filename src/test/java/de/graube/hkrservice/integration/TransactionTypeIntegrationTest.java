@@ -2,11 +2,15 @@ package de.graube.hkrservice.integration;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
+import java.util.stream.Stream;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -42,7 +46,7 @@ class TransactionTypeIntegrationTest {
         // FORDERUNG wird als EINZ getestet.
         runSingleTransactionFlow(
                 "EINZ",
-                "BLG-FORD-" + UUID.randomUUID(),
+                shortBelegnummer("BLG-FORD"),
                 "FORDERUNG"
         );
     }
@@ -52,7 +56,7 @@ class TransactionTypeIntegrationTest {
         // AUSZAHLUNG wird als AUSZ getestet.
         runSingleTransactionFlow(
                 "AUSZ",
-                "BLG-AUSZ-" + UUID.randomUUID(),
+                shortBelegnummer("BLG-AUSZ"),
                 "AUSZAHLUNG"
         );
     }
@@ -62,7 +66,7 @@ class TransactionTypeIntegrationTest {
         // RUECKZAHLUNG wird als EINZ getestet (Mittelrueckfluss).
         runSingleTransactionFlow(
                 "EINZ",
-                "BLG-RUECK-" + UUID.randomUUID(),
+                shortBelegnummer("BLG-RUECK"),
                 "RUECKZAHLUNG"
         );
     }
@@ -72,7 +76,7 @@ class TransactionTypeIntegrationTest {
         // UMBUCHUNG wird als UMB getestet.
         runSingleTransactionFlow(
                 "UMB",
-                "BLG-UMB-" + UUID.randomUUID(),
+                shortBelegnummer("BLG-UMB"),
                 "UMBUCHUNG"
         );
     }
@@ -82,9 +86,16 @@ class TransactionTypeIntegrationTest {
         // HAUSHALTSMITTELRESERVIERUNG wird als RES getestet.
         runSingleTransactionFlow(
                 "RES",
-                "BLG-RES-" + UUID.randomUUID(),
+                shortBelegnummer("BLG-RES"),
                 "HAUSHALTSMITTELRESERVIERUNG"
         );
+    }
+
+    @ParameterizedTest(name = "{2} -> VslType {0}")
+    @MethodSource("transactionTypeMappings")
+    void transactionTypeFlowWorksParameterized(String type, String belegPrefix, String fachbegriff) {
+        // Parametrisierte Variante ueber dieselben fünf fachlichen Buchungsarten.
+        runSingleTransactionFlow(type, shortBelegnummer(belegPrefix), fachbegriff);
     }
 
     private void runSingleTransactionFlow(String type, String belegnummer, String fachbegriff) {
@@ -155,6 +166,23 @@ class TransactionTypeIntegrationTest {
                   "objektkonto":"OBJ-1"
                 }]
                 """.formatted(type, belegnummer, fachbegriff);
+    }
+
+    private String shortBelegnummer(String prefix) {
+        // Die Spalte belegnummer ist auf 40 Zeichen begrenzt, daher nur kurzes Suffix.
+        String shortSuffix = UUID.randomUUID().toString().substring(0, 8);
+        return prefix + "-" + shortSuffix;
+    }
+
+    private static Stream<Arguments> transactionTypeMappings() {
+        // Fachliches Mapping auf die technischen VslType-Werte.
+        return Stream.of(
+                Arguments.of("EINZ", "BLG-FORD", "FORDERUNG"),
+                Arguments.of("AUSZ", "BLG-AUSZ", "AUSZAHLUNG"),
+                Arguments.of("EINZ", "BLG-RUECK", "RUECKZAHLUNG"),
+                Arguments.of("UMB", "BLG-UMB", "UMBUCHUNG"),
+                Arguments.of("RES", "BLG-RES", "HAUSHALTSMITTELRESERVIERUNG")
+        );
     }
 }
 

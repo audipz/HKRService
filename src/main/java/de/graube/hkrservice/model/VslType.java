@@ -1,4 +1,8 @@
 package de.graube.hkrservice.model;
 
-public class VslType {
+/**
+ * Typisierung fuer VSL-Transaktionen im F15Z-Format.
+ */
+public enum VslType {
+    AUSZ, EINZ, UMB, RES
 }

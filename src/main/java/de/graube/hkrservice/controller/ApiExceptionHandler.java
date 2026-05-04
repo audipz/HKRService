@@ -5,9 +5,18 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+/**
+ * Uebersetzt Exceptions in HTTP-konforme ProblemDetails.
+ */
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
+    /**
+     * Behandelt Eingabefehler als HTTP 400.
+     *
+     * @param ex ausgeloeste Exception
+     * @return RFC-7807 ProblemDetail
+     */
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail handleIllegalArgument(IllegalArgumentException ex) {
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
@@ -15,6 +24,12 @@ public class ApiExceptionHandler {
         return detail;
     }
 
+    /**
+     * Behandelt Laufzeitfehler und mappt sie auf fachliche Statuscodes.
+     *
+     * @param ex ausgeloeste Exception
+     * @return RFC-7807 ProblemDetail
+     */
     @ExceptionHandler(RuntimeException.class)
     public ProblemDetail handleRuntime(RuntimeException ex) {
         HttpStatus status = resolveStatus(ex.getMessage());
