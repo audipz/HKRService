@@ -32,6 +32,8 @@ public class F15zFileParser {
         public int trailerCount;
         public BigDecimal trailerSum = BigDecimal.ZERO;
         public boolean trailerIncludesEnvelope;
+        public long bicChecksum = 0;
+        public long ibanChecksum = 0;
     }
 
     /**
@@ -124,7 +126,9 @@ public class F15zFileParser {
     private void parseSpecTrailer(Parsed parsed, String line) {
         // SK9 Feld 6 (Summe): Position 28-41, Laenge 14 (Cent)
         // SK9 Feld 7 (Anzahl): Position 42-46, Laenge 5 (inkl. SK1 + SK9)
-        if (line.length() < 47) {
+        // SK9 Feld 11 (BIC-Pruefsumme): Position 93-112, Laenge 20
+        // SK9 Feld 12 (IBAN-Pruefsumme): Position 113-132, Laenge 20
+        if (line.length() < 133) {
             throw new IllegalArgumentException("Invalid F15z spec trailer line: " + line);
         }
 
@@ -133,6 +137,12 @@ public class F15zFileParser {
         parsed.trailerCount = parsed.count;
         parsed.trailerSum = parsed.sum;
         parsed.trailerIncludesEnvelope = true;
+
+        String bicStr = line.substring(93, 113).trim();
+        parsed.bicChecksum = bicStr.isEmpty() ? 0 : Long.parseLong(bicStr);
+
+        String ibanStr = line.substring(113, 133).trim();
+        parsed.ibanChecksum = ibanStr.isEmpty() ? 0 : Long.parseLong(ibanStr);
     }
 
     private void parsePipeTrailer(Parsed parsed, String line) {

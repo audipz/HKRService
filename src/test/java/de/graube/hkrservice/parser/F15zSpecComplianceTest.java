@@ -107,6 +107,22 @@ class F15zSpecComplianceTest {
     }
 
     @Test
+    void calculatesBicAndIbanChecksums() {
+        String file = generator.build(List.of(tx("BLG1001", VslType.AUSZ, "10.00")));
+        F15zFileParser.Parsed parsed = parser.parse(file);
+
+        // BIC "COBADEFFXXX" Checksum wird berechnet als Summe der Zeichencodes
+        assertEquals(818, parsed.bicChecksum, "BIC-Checksum sollte 818 sein fuer COBADEFFXXX");
+
+        // IBAN "DE89370400440532013000" Checksum
+        long expectedIbanSum = 0;
+        for (char c : "DE89370400440532013000".toCharArray()) {
+            expectedIbanSum += c;
+        }
+        assertEquals(expectedIbanSum, parsed.ibanChecksum, "IBAN-Checksum mismatch");
+    }
+
+    @Test
     void supportsPipeSeparatedReturnFiles() {
         String content = "2|BLG2001|OK|accepted\n2|BLG2002|ERROR|failed\n9|2|0.00";
         F15zFileParser.Parsed parsed = parser.parse(content);

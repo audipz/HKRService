@@ -30,14 +30,18 @@ public class F15zGenerator {
 
         BigDecimal sum = BigDecimal.ZERO;
         int laufendeNummer = 1;
+        long bicChecksum = 0;
+        long ibanChecksum = 0;
 
         for (F15zTransaction tx : txs) {
             sb.append(satz2(tx, laufendeNummer++)).append("\n");
             sum = sum.add(tx.getBetrag() == null ? BigDecimal.ZERO : tx.getBetrag());
+            bicChecksum += calculateBicChecksum(tx.getBic());
+            ibanChecksum += calculateIbanChecksum(tx.getIban());
         }
 
         // SK9 Feld 7 zaehlt Datensaetze inkl. SK1 + SK9.
-        sb.append(trailer(txs.size() + 2, sum));
+        sb.append(trailer(txs.size() + 2, sum, bicChecksum, ibanChecksum));
 
         return sb.toString();
     }
@@ -122,7 +126,7 @@ public class F15zGenerator {
         return padRecord(sb);
     }
 
-    private String trailer(int countIncludingEnvelope, BigDecimal sum) {
+    private String trailer(int countIncludingEnvelope, BigDecimal sum, long bicChecksum, long ibanChecksum) {
         String sb = "9" +
                 "0" +
                 Fixed200.fill("", 6) +
@@ -134,8 +138,8 @@ public class F15zGenerator {
                 "000000000000000" +
                 "000000000000000" +
                 Fixed200.fill("", 16) +
-                "00000000000000000000" +
-                "00000000000000000000";
+                String.format("%020d", bicChecksum) +
+                String.format("%020d", ibanChecksum);
         return padRecord(sb);
     }
 
@@ -170,6 +174,28 @@ public class F15zGenerator {
 
     private String defaultIfBlank(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private long calculateBicChecksum(String bic) {
+        if (bic == null || bic.isEmpty()) {
+            return 0;
+        }
+        long checksum = 0;
+        for (char c : bic.toCharArray()) {
+            checksum += c;
+        }
+        return checksum;
+    }
+
+    private long calculateIbanChecksum(String iban) {
+        if (iban == null || iban.isEmpty()) {
+            return 0;
+        }
+        long checksum = 0;
+        for (char c : iban.toCharArray()) {
+            checksum += c;
+        }
+        return checksum;
     }
 
     private String padRecord(String line) {
