@@ -19,7 +19,11 @@ public class F15zValidator {
         BigDecimal calc = p.amounts.stream()
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        if (p.amounts.size() != p.trailerCount)
+        int expectedCount = p.trailerIncludesEnvelope
+                ? p.amounts.size() + 2
+                : p.amounts.size();
+
+        if (expectedCount != p.trailerCount)
             throw new RuntimeException("Count mismatch");
 
         if (calc.compareTo(p.trailerSum) != 0)

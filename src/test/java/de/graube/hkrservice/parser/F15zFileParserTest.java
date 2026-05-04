@@ -9,8 +9,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 class F15zFileParserTest {
 
@@ -26,8 +25,9 @@ class F15zFileParserTest {
         assertEquals(2, parsed.records.size());
         assertEquals("BLG1001", parsed.records.get(0).belegnummer);
         assertEquals(new BigDecimal("12.34"), parsed.records.get(0).amount);
-        assertEquals(2, parsed.trailerCount);
+        assertEquals(4, parsed.trailerCount);
         assertEquals(new BigDecimal("62.34"), parsed.trailerSum);
+        assertTrue(parsed.trailerIncludesEnvelope);
     }
 
     @Test

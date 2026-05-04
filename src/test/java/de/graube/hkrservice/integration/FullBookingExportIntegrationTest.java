@@ -190,8 +190,8 @@ class FullBookingExportIntegrationTest {
                 "Exportdatei muss genau 4 Datensätze (Satzart 2) enthalten");
 
         // 4c) Trailer-Anzahl stimmt mit DB überein
-        assertEquals(4, parsed.trailerCount,
-                "Trailer-Anzahl muss 4 betragen");
+        assertEquals(6, parsed.trailerCount,
+                "Trailer-Anzahl muss 6 betragen (4 Datensaetze + SK1 + SK9)");
 
         // 4d) Gesamtsumme im Trailer stimmt mit DB-Summe überein
         assertEquals(0, expectedSum.compareTo(parsed.trailerSum),

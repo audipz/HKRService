@@ -9,6 +9,8 @@ import java.util.List;
  */
 public class F15zFileParser {
 
+    private static final int SPEC_RECORD_LENGTH = 570;
+
     /**
      * Repraesentiert einen Datensatz aus Datei- oder Rueckmeldedaten.
      */
@@ -29,6 +31,7 @@ public class F15zFileParser {
         public BigDecimal sum = BigDecimal.ZERO;
         public int trailerCount;
         public BigDecimal trailerSum = BigDecimal.ZERO;
+        public boolean trailerIncludesEnvelope;
     }
 
     /**
@@ -40,8 +43,7 @@ public class F15zFileParser {
     public Parsed parse(String content) {
         Parsed parsed = new Parsed();
 
-        for (String rawLine : content.split("\\r?\\n")) {
-            String line = rawLine == null ? "" : rawLine;
+        for (String line : content.split("\\r?\\n")) {
             if (line.isBlank()) {
                 continue;
             }
@@ -51,8 +53,13 @@ public class F15zFileParser {
                 continue;
             }
 
+            if (line.startsWith("2") && line.length() >= SPEC_RECORD_LENGTH) {
+                parseSpecRecord(parsed, line);
+                continue;
+            }
+
             if (line.startsWith("2")) {
-                parseF15zRecord(parsed, line);
+                parseLegacyRecord(parsed, line);
                 continue;
             }
 
@@ -61,15 +68,20 @@ public class F15zFileParser {
                 continue;
             }
 
+            if (line.startsWith("9") && line.length() >= SPEC_RECORD_LENGTH) {
+                parseSpecTrailer(parsed, line);
+                continue;
+            }
+
             if (line.startsWith("9")) {
-                parseFixedWidthTrailer(parsed, line);
+                parseLegacyTrailer(parsed, line);
             }
         }
 
         return parsed;
     }
 
-    private void parseF15zRecord(Parsed parsed, String line) {
+    private void parseLegacyRecord(Parsed parsed, String line) {
         if (line.length() < 36) {
             throw new IllegalArgumentException("Invalid F15z record line: " + line);
         }
@@ -82,7 +94,7 @@ public class F15zFileParser {
         parsed.amounts.add(record.amount);
     }
 
-    private void parseFixedWidthTrailer(Parsed parsed, String line) {
+    private void parseLegacyTrailer(Parsed parsed, String line) {
         if (line.length() < 22) {
             throw new IllegalArgumentException("Invalid F15z trailer line: " + line);
         }
@@ -91,6 +103,36 @@ public class F15zFileParser {
         parsed.sum = new BigDecimal(line.substring(7, 22).trim()).movePointLeft(2);
         parsed.trailerCount = parsed.count;
         parsed.trailerSum = parsed.sum;
+        parsed.trailerIncludesEnvelope = false;
+    }
+
+    private void parseSpecRecord(Parsed parsed, String line) {
+        // SK2 Feld 11 (Kassenzeichen): Position 78-89, Laenge 12
+        // SK2 Feld 24 (Betrag in Cent): Position 260-272, Laenge 13
+        if (line.length() < 273) {
+            throw new IllegalArgumentException("Invalid F15z spec record line: " + line);
+        }
+
+        Record record = new Record();
+        record.belegnummer = line.substring(78, 90).trim();
+        record.amount = new BigDecimal(line.substring(260, 273).trim()).movePointLeft(2);
+
+        parsed.records.add(record);
+        parsed.amounts.add(record.amount);
+    }
+
+    private void parseSpecTrailer(Parsed parsed, String line) {
+        // SK9 Feld 6 (Summe): Position 28-41, Laenge 14 (Cent)
+        // SK9 Feld 7 (Anzahl): Position 42-46, Laenge 5 (inkl. SK1 + SK9)
+        if (line.length() < 47) {
+            throw new IllegalArgumentException("Invalid F15z spec trailer line: " + line);
+        }
+
+        parsed.count = Integer.parseInt(line.substring(42, 47).trim());
+        parsed.sum = new BigDecimal(line.substring(28, 42).trim()).movePointLeft(2);
+        parsed.trailerCount = parsed.count;
+        parsed.trailerSum = parsed.sum;
+        parsed.trailerIncludesEnvelope = true;
     }
 
     private void parsePipeTrailer(Parsed parsed, String line) {
@@ -103,6 +145,7 @@ public class F15zFileParser {
         parsed.sum = new BigDecimal(parts[2]);
         parsed.trailerCount = parsed.count;
         parsed.trailerSum = parsed.sum;
+        parsed.trailerIncludesEnvelope = false;
     }
 
     private void parseReturnRecord(Parsed parsed, String line) {
